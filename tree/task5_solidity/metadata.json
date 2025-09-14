@@ -1,0 +1,16 @@
+{
+    "name": "My First NFT",
+    "description": "这是我的第一个 NFT，上链测试成功！",
+    "image": "ipfs://bafkreianagr74uw37hgvkk3s67yg4xknoepegnzl2rqicyf3fgtuoqrbym", 
+    "attributes": [
+      {
+        "trait_type": "Background",
+        "value": "Blue"
+      },
+      {
+        "trait_type": "Power",
+        "value": "100"
+      }
+    ]
+  }
+  
