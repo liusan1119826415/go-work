@@ -1,0 +1,110 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+// contract MyNftERC721 is ERC721URIStorage, Ownable {
+//     uint256 private _tokenIds;
+
+//     constructor() ERC721("MyNFT", "MNFT") Ownable(msg.sender){}
+
+//     function mintNFT(address recipient, string calldata tokenURI) external onlyOwner returns (uint256) {
+//         _tokenIds++;
+//         uint256 newItemId = _tokenIds;
+
+//         _mint(recipient, newItemId);
+//         _setTokenURI(newItemId, tokenURI);
+
+//         return newItemId;
+//     }
+// }
+
+import "./ICrossChainAuction.sol";
+
+contract MyNftERC721 is ERC721Enumerable, Ownable {
+    string private _tokenURI;
+    address public crossChainAuction;
+
+    constructor() ERC721("MyNFT", "MNFT") Ownable(msg.sender) {}
+
+    function setCrossChainAuction(address _crossChainAuction) external onlyOwner {
+        crossChainAuction = _crossChainAuction;
+    }
+
+    function mintNFT(address to, uint256 tokenId) external onlyOwner {
+        _mint(to, tokenId);
+    }
+
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        return _tokenURI;
+    }
+
+    function setTokenURI(string memory newTokenURI) external onlyOwner {
+        _tokenURI = newTokenURI;
+    }
+
+    // 跨链转移NFT
+    function crossChainTransfer(
+        uint256 tokenId,
+        uint256 targetChainId,
+        address recipient
+    ) external {
+        require(ownerOf(tokenId) == msg.sender, "Not NFT owner");
+        require(
+            getApproved(tokenId) == crossChainAuction ||
+            isApprovedForAll(msg.sender, crossChainAuction),
+            "Not approved for cross-chain transfer"
+        );
+
+        // 锁定NFT
+        _burn(tokenId);
+
+        // 准备跨链消息
+        ICrossChainAuction.CrossChainMessage memory message = ICrossChainAuction.CrossChainMessage({
+            auctionId: 0,
+            sender: msg.sender,
+            chainId: targetChainId,
+            value: 0,
+            tokenAddress: address(0),
+            nftContract: address(this),
+            nftTokenId: tokenId,
+            timestamp: block.timestamp,
+            signature: ""
+        });
+
+        // 发送跨链消息
+        ICrossChainAuction(crossChainAuction).sendCrossChainMessage(message, uint64(targetChainId));
+    }
+
+    // 跨链接收NFT
+    function crossChainReceive(
+        address recipient,
+        uint256 tokenId,
+        bytes calldata signature
+    ) external {
+        require(msg.sender == crossChainAuction, "Only cross-chain auction can call");
+
+        // 验证消息
+        ICrossChainAuction.CrossChainMessage memory message = ICrossChainAuction.CrossChainMessage({
+            auctionId: 0,
+            sender: recipient,
+            chainId: block.chainid,
+            value: 0,
+            tokenAddress: address(0),
+            nftContract: address(this),
+            nftTokenId: tokenId,
+            timestamp: block.timestamp,
+            signature: signature
+        });
+
+        require(
+            ICrossChainAuction(crossChainAuction).verifyCrossChainMessage(message),
+            "Invalid cross-chain message"
+        );
+
+        // 铸造NFT给接收者
+        _mint(recipient, tokenId);
+    }
+}

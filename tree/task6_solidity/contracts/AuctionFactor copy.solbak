@@ -1,0 +1,448 @@
+//SPDX-License-Identifier: MIT
+pragma solidity ^0.8;
+import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import "./Auction.sol";
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+import "./IAuctionFactor.sol";
+import "./ICrossChainAuction.sol";
+
+import "@chainlink/contracts-ccip/contracts/interfaces/IRouterClient.sol";
+import "@chainlink/contracts-ccip/contracts/libraries/Client.sol";
+
+contract AuctionFactor is IAuctionFactor, ICrossChainAuction {
+    address[] public auctions;
+
+    address public immutable proxyAdmin;
+
+    address public implementation;
+
+    mapping(uint256=>address) public auctionMap;
+
+    mapping(address =>uint256[]) public userAuctions;
+
+    mapping(address=> AggregatorV3Interface) public priceFeeds;
+
+    struct AuctionData {
+        address seller;
+        uint256 duration;
+        uint256 minBid;
+        uint256 highestBid;
+        address highestBidder;
+        bool ended;
+        uint256 startTime;
+        uint256 endTime;
+        address nftContract;
+        uint256 tokenId;
+        address tokenAddress;
+   }
+
+    // Cross-chain auction state
+    mapping(uint256 => uint256) public auctionChainId; // auctionId => chainId
+    mapping(uint256 => mapping(uint256 => bool)) public crossChainAuctions; // chainId => auctionId => exists
+    mapping(uint256 => CrossChainMessage) public crossChainMessages; // messageId => message
+
+    // CCIP Router
+    IRouterClient public ccipRouter;
+    uint64 public ccipChainId;
+
+    event AuctionCreated(address indexed auctionAddress, uint256 indexed auctionId, address indexed creator);
+    event PriceFeedSet(address indexed token, address indexed priceFeed);
+    constructor(address _implementation, address _proxyAdmin) {
+         implementation = _implementation;
+        proxyAdmin = _proxyAdmin;
+       
+
+        Auction(implementation).initialize();
+    }
+
+    function createAuction(uint256 _duration, uint256 _minBid, address _nftContract, uint256 _tokenId) public returns (address) {
+
+            require(IERC721(_nftContract).ownerOf(_tokenId) == msg.sender, "Not NFT owner");
+            require(
+                IERC721(_nftContract).getApproved(_tokenId) == address(this) ||
+                IERC721(_nftContract).isApprovedForAll(msg.sender, address(this)),
+                "Factory not approved"
+            );
+        TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
+            implementation,
+            proxyAdmin,
+            ""
+        );
+
+        address auctionAddress = address(proxy);
+        Auction(auctionAddress).initialize(); // 确保初始化
+        
+        Auction(auctionAddress).setFactory(address(this));
+
+  
+
+        Auction(auctionAddress).createAuction(_duration, _minBid, _nftContract, _tokenId);
+        // 关键步骤：将NFT直接从卖家转移到拍卖合约
+        IERC721(_nftContract).safeTransferFrom(msg.sender, auctionAddress, _tokenId);
+        auctions.push(auctionAddress);
+        uint256 auctionId = auctions.length - 1;
+        auctionMap[auctionId] = auctionAddress;
+        userAuctions[msg.sender].push(auctionId);
+
+        emit AuctionCreated(auctionAddress, auctionId, msg.sender); // 确保事件正确触发
+        return auctionAddress;
+    }
+
+
+
+    function upgradeAuctionImplementation(address newImplementation) external {
+        require(msg.sender == proxyAdmin, "Only proxy admin can upgrade");
+    
+        implementation = newImplementation;
+    }
+    
+    function getAuctions() external view returns (address[] memory) {
+        return auctions;
+    }
+
+
+    // 在合约顶部添加结构体
+struct AuctionData {
+    address seller;
+    uint256 duration;
+    uint256 minBid;
+    uint256 highestBid;
+    address highestBidder;
+    bool ended;
+    uint256 startTime;
+    uint256 endTime;
+    address nftContract;
+    uint256 tokenId;
+    address tokenAddress;
+}
+
+// 修改 getAuction 函数
+    function getAuction(uint256 auctionId) public view returns (AuctionData memory) {
+        require(auctionId < auctions.length, "Invalid auction ID");
+        address auctionAddress = auctionMap[auctionId];
+        
+        (
+            address seller,
+            uint256 duration,
+            uint256 minBid,
+            uint256 highestBid,
+            address highestBidder,
+            bool ended,
+            uint256 startTime,
+            uint256 endTime,
+            address nftContract,
+            uint256 tokenId,
+            address tokenAddress
+        ) = Auction(auctionAddress).getAuctionItem(auctionId);
+        
+        return AuctionData(
+            seller, duration, minBid, highestBid, highestBidder, 
+            ended, startTime, endTime, nftContract, tokenId, tokenAddress
+        );
+    }
+    function getUserAuctions(address user) external view returns (uint256[] memory) {
+        return userAuctions[user];
+    }
+
+    function getAuctionCount() external view returns (uint256) {
+        return auctions.length;
+    }
+
+    function getAuctionMap(uint256 auctionId) external view returns (address) {
+        return auctionMap[auctionId];
+    }
+
+    function placeBid(uint256 auctionId, uint256 amount, address tokenAddress) external payable {
+        console.log("Placing bid on auction ID:", auctionId);
+        address auctionAddress = auctionMap[auctionId];
+        require(auctionAddress != address(0), "Auction does not exist");
+        
+        // 获取调用者（真正的出价者）
+        address bidder = msg.sender;
+        
+        if (tokenAddress == address(0)) {
+            // ETH出价 - 传递value和出价者地址
+            Auction(auctionAddress).placeBid{value: msg.value}(
+                auctionId, 
+                amount, 
+                tokenAddress,
+                bidder
+            );
+        } else {
+            // ERC20出价 - 只需要传递出价者地址
+            Auction(auctionAddress).placeBid(
+                auctionId, 
+                amount, 
+                tokenAddress,
+                bidder
+            );
+        }
+        
+        
+    }
+
+    //结束拍卖
+    function endAuction(uint256 auctionId) external {
+        address auctionAddress = auctionMap[auctionId];
+        require(auctionAddress != address(0), "Auction does not exist");
+
+        Auction(auctionAddress).endAuction(auctionId);
+    }
+
+
+    // 设置价格预言机
+    function setPriceFeed(address tokenAddress, address priceFeedAddress) external {
+        priceFeeds[tokenAddress] = AggregatorV3Interface(priceFeedAddress);
+        emit PriceFeedSet(tokenAddress, priceFeedAddress);
+    }
+
+
+    // 获取价格
+    function getPrice(address tokenAddress) external view returns (int256) {
+        AggregatorV3Interface priceFeed = priceFeeds[tokenAddress];
+        require(address(priceFeed) != address(0), "Price feed not set");
+        
+        // 根据你的AggregatorV3实现返回价格
+        // 如果是真实的Chainlink预言机，应该这样调用：
+        // (, int256 price, , , ) = priceFeed.latestRoundData();
+        // return price;
+        
+        // 如果是你的模拟预言机，直接调用相应方法
+         (, int256 price, , , ) = priceFeed.latestRoundData();
+            uint8 decimals = priceFeed.decimals();
+            console.log("Token:", tokenAddress);
+            console.log("Raw Price:", uint256(price));
+            console.log("Decimals:", decimals);
+        return price;
+    }
+
+    // 设置CCIP路由器和链ID
+    function setCcipRouter(address router, uint64 chainId) external {
+        require(msg.sender == proxyAdmin, "Only proxy admin can set CCIP router");
+        ccipRouter = IRouterClient(router);
+        ccipChainId = chainId;
+    }
+
+
+
+    // 发送跨链消息
+    function sendCrossChainMessage(CrossChainMessage memory message, uint64 targetChainId) external override {
+        Client.EVM2AnyMessage memory evm2AnyMessage = Client.EVM2AnyMessage({
+            receiver: abi.encode(address(this)), // 目标合约地址
+            data: abi.encode(message), // 编码的消息
+            tokenAmounts: new Client.EVMTokenAmount[](0), // 不发送代币
+            extraArgs: "",
+            feeToken: address(0) // 使用原生代币支付费用
+        });
+
+        // 获取费用估算
+        uint256 fee = ccipRouter.getFee(uint64(targetChainId), evm2AnyMessage);
+
+        // 发送消息
+        ccipRouter.ccipSend{value: fee}(uint64(targetChainId), evm2AnyMessage);
+    }
+
+    // 创建跨链拍卖
+    function createCrossChainAuction(
+        uint256 duration,
+        uint256 minBid,
+        address nftContract,
+        uint256 tokenId,
+        uint64 targetChainId
+    ) external   {
+        // 1. 创建本地拍卖
+        address auctionAddress = createAuction(duration, minBid, nftContract, tokenId);
+        uint256 auctionId = auctions.length - 1;
+        auctionChainId[auctionId] = targetChainId;
+
+        // 2. 准备跨链消息
+        CrossChainMessage memory message = CrossChainMessage({
+            auctionId: auctionId,
+            sender: msg.sender,
+            chainId: ccipChainId,
+            value: minBid,
+            tokenAddress: address(0), // 默认使用ETH
+            nftContract: nftContract,
+            nftTokenId: tokenId,
+            timestamp: block.timestamp,
+            signature: ""
+        });
+
+        // 3. 发送跨链消息
+     //   sendCrossChainMessage(message, targetChainId);
+
+        emit CrossChainAuctionCreated(auctionId, nftContract, tokenId, targetChainId);
+    }
+
+
+
+
+    // 跨链出价
+    function placeCrossChainBid(
+        uint256 auctionId,
+        uint256 amount,
+        address tokenAddress,
+        uint256 sourceChainId,
+        bytes calldata signature
+    ) external payable override noReentrancy auctionActive{
+        // 1. 验证拍卖存在
+        address auctionAddress = auctionMap[auctionId];
+        require(auctionAddress != address(0), "Auction does not exist");
+        require(auctionChainId[auctionId] == sourceChainId, "Invalid source chain");
+
+        // 2. 准备并验证跨链消息
+        CrossChainMessage memory message = CrossChainMessage({
+            auctionId: auctionId,
+            sender: msg.sender,
+            chainId: sourceChainId,
+            value: amount,
+            tokenAddress: tokenAddress,
+            nftContract: address(0),
+            nftTokenId: 0,
+            timestamp: block.timestamp,
+            signature: signature
+        });
+
+        require(verifyCrossChainMessage(message), "Invalid cross-chain message");
+
+        // 3. 处理出价
+        if (tokenAddress == address(0)) {
+            // ETH出价
+            Auction(auctionAddress).placeBid{value: msg.value}(
+                auctionId,
+                amount,
+                tokenAddress,
+                msg.sender
+            );
+        } else {
+            // ERC20出价
+            Auction(auctionAddress).placeBid(
+                auctionId,
+                amount,
+                tokenAddress,
+                msg.sender
+            );
+        }
+
+        emit CrossChainBidPlaced(auctionId, msg.sender, amount, tokenAddress, sourceChainId);
+    }
+
+    // 防止重入攻击
+    bool private locked;
+    modifier noReentrancy() {
+        require(!locked, "No reentrancy");
+        locked = true;
+        _;
+        locked = false;
+    }
+
+    // 验证跨链消息
+    function verifyCrossChainMessage(
+        CrossChainMessage memory message
+    ) public view override returns (bool) {
+        // 检查时间戳有效性
+        if (message.timestamp <= block.timestamp - 1 hours) {
+            return false;
+        }
+
+        // 检查签名有效性（简化版，实际项目需要实现ECDSA验证）
+        if (message.signature.length == 0) {
+            return false;
+        }
+
+        // 检查链ID有效性
+        if (message.chainId != ccipChainId && message.chainId != block.chainid) {
+            return false;
+        }
+
+        return true;
+    }
+
+    // 仅拍卖所有者修饰器
+    modifier onlyAuctionOwner(uint256 auctionId) {
+        address auctionAddress = auctionMap[auctionId];
+        require(auctionAddress != address(0), "Auction does not exist");
+        AuctionData memory auctionInfo = getAuction(auctionId);
+        require(auctionInfo.seller == msg.sender, "Not auction owner");
+        _;
+    }
+
+    // 检查拍卖是否活跃
+    modifier auctionActive(uint256 auctionId) {
+        address auctionAddress = auctionMap[auctionId];
+        require(auctionAddress != address(0), "Auction does not exist");
+        AuctionData memory auctionInfo = getAuction(auctionId);
+        require(!auctionInfo.ended, "Auction already ended");
+        require(block.timestamp < auctionInfo.endTime, "Auction expired");
+        _;
+    }
+
+    // 跨链拍卖结算
+    function settleCrossChainAuction(
+        uint256 auctionId,
+        uint256 sourceChainId,
+        bytes calldata signature
+    ) external override noReentrancy onlyAuctionOwner {
+        // 1. 验证拍卖存在
+        address auctionAddress = auctionMap[auctionId];
+        require(auctionAddress != address(0), "Auction does not exist");
+        // 放宽链ID验证：允许创建链或目标链
+        uint256 targetChainId = auctionChainId[auctionId];
+        require(
+            sourceChainId == targetChainId || 
+            sourceChainId == ccipChainId || 
+            sourceChainId == block.chainid,
+            "Invalid source chain"
+        );
+
+        // 2. 获取拍卖信息
+        AuctionData memory auctionInfo = getAuction(auctionId);
+        require(!AuctionData.ended, "Auction already ended");
+        require(block.timestamp >= AuctionData.endTime, "Auction not yet ended");
+
+        // 3. 准备并验证跨链消息
+        CrossChainMessage memory message = CrossChainMessage({
+            auctionId: auctionId,
+            sender: AuctionData.seller,
+            chainId: sourceChainId,
+            value: AuctionData.highestBid,
+            tokenAddress: AuctionData.tokenAddress,
+            nftContract: AuctionData.NFTcontruct,
+            nftTokenId: AuctionData.tokenId,
+            timestamp: block.timestamp,
+            signature: signature
+        });
+
+        require(verifyCrossChainMessage(message), "Invalid cross-chain message");
+
+        // 4. 处理NFT跨链转移
+        if (sourceChainId != ccipChainId) {
+            // 如果是跨链拍卖，需要发送NFT到目标链
+            _sendCrossChainNFT(message);
+        }
+
+        // 5. 结束本地拍卖
+        Auction(auctionAddress).endAuction(auctionId);
+
+        emit CrossChainAuctionEnded(auctionId, highestBidder, highestBid, sourceChainId);
+    }
+
+    // 发送跨链NFT
+    function _sendCrossChainNFT(CrossChainMessage memory message) internal {
+        Client.EVM2AnyMessage memory evm2AnyMessage = Client.EVM2AnyMessage({
+            receiver: abi.encode(address(this)), // 目标合约地址
+            data: abi.encode(message), // 编码的消息
+            tokenAmounts: new Client.EVMTokenAmount[](0), // 不发送代币
+            extraArgs: "",
+            feeToken: address(0) // 使用原生代币支付费用
+        });
+
+        // 获取费用估算
+        uint256 fee = ccipRouter.getFee(uint64(message.chainId), evm2AnyMessage);
+
+        // 发送消息
+        ccipRouter.ccipSend{value: fee}(uint64(message.chainId), evm2AnyMessage);
+    }
+
+}
