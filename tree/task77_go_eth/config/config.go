@@ -232,8 +232,8 @@ func (cm *ConfigManager) createDefaultConfig() (*Config, error) {
 			WebSocketURL string `json:"ws_url"`
 			ChainID      int64  `json:"chain_id"`
 		}{
-			RPCURL:       "https://rpc.ankr.com/eth_sepolia/ac74bf54e016c464a8435bbe4abed08afab642c32fc6f32416f8a6ba637a8882",
-			WebSocketURL: "wss://rpc.ankr.com/eth_sepolia/ws/dcd47477f623a9074a4085b674b9ea33643c34b98def1427afd738e17c3d8a50",
+			RPCURL:       "https://rpc.ankr.com/eth_sepolia/",
+			WebSocketURL: "wss://rpc.ankr.com/eth_sepolia/ws/",
 			ChainID:      11155111, // Sepolia 测试网链 ID
 		},
 		Account: struct {
