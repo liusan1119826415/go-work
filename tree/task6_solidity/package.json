@@ -26,5 +26,16 @@
     "@openzeppelin/hardhat-upgrades": "^3.9.1",
     "dotenv": "^17.2.2",
     "hardhat-deploy": "^1.0.4"
-  }
+  },
+  "description": "1. 新建 `.env`：",
+  "main": "hardhat.config copy 2.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }
