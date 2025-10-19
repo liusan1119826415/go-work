@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
-	"go-ethereum/config"
 
 	"go-ethereum/count" // 暂时注释，待重新生成绑定文件后启用
 	"log"
@@ -25,19 +24,19 @@ func (d *ContractApp) Name() string {
 
 func (d *ContractApp) Run() error {
 
-	client, err := ethclient.Dial("https://ethereum-sepolia-rpc.publicnode.com")
+	client, err := ethclient.Dial("http://127.0.0.1:8545")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	configManage := config.NewConfigManager("my_config.json", "liusan123")
+	// configManage := config.NewConfigManager("my_config.json", "liusan123")
 
-	privateHexkey, err := configManage.GetPrivateKey()
-	if err != nil {
-		log.Fatal(err)
-	}
+	// privateHexkey, err := configManage.GetPrivateKey()
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
-	privateKey, err := crypto.HexToECDSA(privateHexkey)
+	privateKey, err := crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
 
 	if err != nil {
 		log.Fatal(err)

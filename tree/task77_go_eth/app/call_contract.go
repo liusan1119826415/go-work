@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
-	"go-ethereum/config"
 	"go-ethereum/count"
 	"log"
 	"math/big"
@@ -25,12 +24,14 @@ func (d *CallContractApp) Name() string {
 
 func (d *CallContractApp) Run() error {
 
-	client, err := ethclient.Dial("https://ethereum-sepolia-rpc.publicnode.com")
+	//client, err := ethclient.Dial("https://ethereum-sepolia-rpc.publicnode.com")
+	client, err := ethclient.Dial("http://127.0.0.1:8545")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	contractAddress := "0xAaCB6E3fAA5a155e6Ca33AAD5F246d673276310B"
+	//contractAddress := "0xAaCB6E3fAA5a155e6Ca33AAD5F246d673276310B"
+	contractAddress := "0x3A220f351252089D385b29beca14e27F204c296A"
 
 	// 验证地址上是否有合约代码
 	bytecode, err := client.CodeAt(context.Background(), common.HexToAddress(contractAddress), nil)
@@ -57,12 +58,12 @@ func (d *CallContractApp) Run() error {
 	fmt.Printf("✅ 已连接到合约地址: %s\n\n", contractAddress)
 
 	// 获取配置管理器
-	configManage := config.NewConfigManager("my_config.json", "liusan123")
-	privateKeyHex, err := configManage.GetPrivateKey()
-	if err != nil {
-		log.Fatal("获取私钥失败:", err)
-	}
-
+	// configManage := config.NewConfigManager("my_config.json", "liusan123")
+	// privateKeyHex, err := configManage.GetPrivateKey()
+	// if err != nil {
+	// 	log.Fatal("获取私钥失败:", err)
+	// }
+	privateKeyHex := "b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291"
 	privateKey, err := crypto.HexToECDSA(privateKeyHex)
 	if err != nil {
 		log.Fatal("解析私钥失败:", err)
@@ -86,7 +87,13 @@ func (d *CallContractApp) Run() error {
 	fmt.Printf("合约所有者: %s\n", owner.Hex())
 
 	// 准备交易选项
-	opt, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(11155111))
+
+	chainID, err := client.NetworkID(context.Background())
+	if err != nil {
+		log.Fatal("获取链ID失败:", err)
+
+	}
+	opt, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
 	if err != nil {
 		log.Fatal("创建交易器失败:", err)
 	}

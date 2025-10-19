@@ -1,0 +1,28 @@
+{
+  "name": "task88-geth-practice",
+  "version": "1.0.0",
+  "description": "Go-Ethereum核心功能与架构设计研究 - Web3.js实践脚本",
+  "main": "scripts/test-geth.js",
+  "scripts": {
+    "test": "node scripts/test-geth.js",
+    "deploy-contract": "node scripts/deploy-contract.js"
+  },
+  "keywords": [
+    "ethereum",
+    "geth",
+    "web3",
+    "blockchain"
+  ],
+  "author": "Task88 Student",
+  "license": "MIT",
+  "dependencies": {
+    "web3": "^4.2.0"
+  },
+  "devDependencies": {
+    "solc": "^0.8.21"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=7.0.0"
+  }
+}
