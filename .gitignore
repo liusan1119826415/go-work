@@ -1,5 +1,6 @@
 # 敏感配置文件
 config.yaml
+my_config.json
 *.key
 *.pem
 
