@@ -1,0 +1,34 @@
+# Solana 配置文件模板
+# 复制此文件为 config.yaml 并填入你的实际配置
+
+# 网络配置
+network:
+  # RPC 节点地址
+  rpc_url: "https://api.devnet.solana.com"
+  # WebSocket 地址
+  ws_url: "wss://api.devnet.solana.com"
+  # 网络类型: devnet, testnet, mainnet-beta
+  cluster: "devnet"
+
+# 钱包配置
+wallet:
+  # 私钥 (Base58 格式)
+  # 警告: 生产环境中请使用环境变量或密钥管理服务
+  # 从 Phantom 钱包或 Solana CLI 导出的私钥
+  private_key_base58: "YOUR_PRIVATE_KEY_HERE"
+
+# 代币配置
+tokens:
+  # USDT Mint 地址
+  # Devnet: 替换为你的测试代币地址
+  # Mainnet: Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB
+  usdt_mint: "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
+
+# 事件监听配置
+event_listener:
+  # 是否启用自动重连
+  auto_reconnect: true
+  # 重连间隔（秒）
+  reconnect_interval: 5
+  # 监听的签名列表（可选，示例）
+  signatures: []
