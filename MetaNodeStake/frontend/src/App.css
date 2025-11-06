@@ -1,0 +1,217 @@
+.App {
+  text-align: center;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+}
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 0;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 30px;
+}
+
+.app-header h1 {
+  color: #333;
+  margin: 0;
+}
+
+.wallet-section .connect-btn {
+  background-color: #4CAF50;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.wallet-section .connect-btn:hover {
+  background-color: #45a049;
+}
+
+.account-info {
+  background-color: #f0f8ff;
+  padding: 10px 15px;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+.contract-setup {
+  background-color: #f9f9f9;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 30px;
+}
+
+.contract-setup h2 {
+  margin-top: 0;
+}
+
+.input-group {
+  margin-bottom: 15px;
+  text-align: left;
+}
+
+.input-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.contract-setup button {
+  background-color: #2196F3;
+  color: white;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.contract-setup button:hover {
+  background-color: #0b7dda;
+}
+
+.contract-setup button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.pools-section h2 {
+  margin-bottom: 20px;
+}
+
+.pools-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 20px;
+}
+
+.pool-card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 20px;
+  background-color: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.pool-card h3 {
+  margin-top: 0;
+  color: #333;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+
+.pool-info p, .user-info p {
+  margin: 8px 0;
+  text-align: left;
+}
+
+.actions {
+  margin-top: 20px;
+}
+
+.action-group {
+  display: flex;
+  margin-bottom: 15px;
+  gap: 10px;
+}
+
+.action-group input {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.action-group button {
+  background-color: #FF9800;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 15px;
+  cursor: pointer;
+}
+
+.action-group button:hover {
+  background-color: #e68900;
+}
+
+.action-group button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.action-buttons button {
+  background-color: #9C27B0;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 10px;
+  cursor: pointer;
+  width: 100%;
+}
+
+.action-buttons button:hover {
+  background-color: #7b1fa2;
+}
+
+.action-buttons button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.unstake-requests {
+  margin-top: 30px;
+  text-align: left;
+}
+
+.unstake-requests h2 {
+  text-align: center;
+}
+
+.unstake-requests ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+.unstake-requests li {
+  background-color: #f0f8ff;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 4px;
+}
+
+@media (max-width: 768px) {
+  .pools-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .app-header {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .action-group {
+    flex-direction: column;
+  }
+}
