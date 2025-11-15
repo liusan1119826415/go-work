@@ -1,0 +1,17 @@
+# Bytecode and AST files
+*.abi
+*.ast
+*.bin
+
+# Foundry outputs
+out/
+cache/
+
+# Dependency directories
+lib/
+
+# Environment files
+.env
+
+# Coverage reports
+*.lcov
